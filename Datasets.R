@@ -10,13 +10,15 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
 # Walking Score Data Cleaning ----
 
   # Finding Mean Walk Score per State
-    ws_select_df <- select(ws_full_df, STATEFP, COUNTYFP, NatWalkInd, D4A_Ranked)
+    ws_select_df <- select(ws_full_df, STATEFP, COUNTYFP, NatWalkInd, D4A_Ranked, D3B_Ranked)
     ws_select_df <- group_by(ws_select_df, STATEFP)
     ws_df <- summarize(ws_select_df, 
                        avg_walk = mean(NatWalkInd), 
-                       avg_commute = mean(D4A_Ranked))
+                       avg_commute = mean(D4A_Ranked),
+                       avg_intersection = mean(D3B_Ranked))
     ws_df$avg_walk <- round(ws_df$avg_walk, digits = 2)
     ws_df$avg_commute <- round(ws_df$avg_commute, digits = 2)
+    ws_df$avg_intersection <- round(ws_df$avg_intersection, digits = 2)
     
   # Walkability Score to Phrase Function
     
@@ -38,13 +40,14 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
       return(result)
     } 
     ws_df$walkable <- mapply(toWalkable, ws_df$avg_walk)
-
+    
 # Chronic Disease Data Cleaning ----
   ds_clean_df <- na.omit(select(ds_full_df, YearStart, YearEnd, 
                                  LocationAbbr, Topic, Question, DataValueUnit,
                                  DataValueType, DataValueAlt))
 
-  ds_clean_df <- filter(ds_full_df, YearStart == 2021, DataValueType == "Crude Prevalence")
+  ds_clean_df <- filter(ds_full_df, YearStart == 2021)
+  
   dfClean <- function(df){
   # LIST OF POTENTIALLY RELEVANT DATA QUESTIONS
 # 1.  "Overweight or obesity among adults aged >= 18 years" 
@@ -55,52 +58,60 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
 # 6. "Fair or poor self-rated health status among adults aged >= 18 years"
   
   #VARIABLES
-  ds_filt_df <- filter(df, YearStart == 2021, DataValueType == "Crude Prevalence")
+  ds_filt_df <- filter(df, YearStart == 2021, 
+                       DataValueType == "Age-adjusted Prevalence")
   main_df <- as.data.frame(state.abb)
   main_df <- rename(main_df, "LocationAbbr" = "state.abb")
   
   #QUESTION ONE: OBESITY
-  ds_filt1_df <- filter(ds_filt_df, Question == "Overweight or obesity among adults aged >= 18 years")
+  ds_filt1_df <- filter(ds_filt_df, 
+                        Question == "Overweight or obesity among adults aged >= 18 years")
   ds_select1_df <- select(ds_filt1_df, LocationAbbr, DataValueAlt)
   ds_select1_df <- group_by(ds_select1_df, LocationAbbr)
   ds_1_df <- summarise(ds_select1_df, Obesity = mean(DataValueAlt))
   ds_1_df$Obesity <- round(ds_1_df$Obesity, digits = 2)
   
   #QUESTION TWO: ASTHMA
-  ds_filt2_df <- filter(ds_filt_df, Question == "Current asthma prevalence among adults aged >= 18 years")
+  ds_filt2_df <- filter(ds_filt_df, 
+                        Question == "Current asthma prevalence among adults aged >= 18 years")
   ds_select2_df <- select(ds_filt2_df, LocationAbbr, DataValueAlt)
   ds_select2_df <- group_by(ds_select2_df, LocationAbbr)
   ds_2_df <- summarise(ds_select2_df, Asthma = mean(DataValueAlt))
   ds_2_df$Asthma <- round(ds_2_df$Asthma, digits = 2)
   
   #QUESTION THREE: CHOLESTEROL
-  ds_filt3_df <- filter(ds_filt_df, Question == "High cholesterol prevalence among adults aged >= 18 years")
+  ds_filt3_df <- filter(ds_filt_df, 
+                        Question == "High cholesterol prevalence among adults aged >= 18 years")
   ds_select3_df <- select(ds_filt3_df, LocationAbbr, DataValueAlt)
   ds_select3_df <- group_by(ds_select3_df, LocationAbbr)
   ds_3_df <- summarise(ds_select3_df, Cholesterol = mean(DataValueAlt))
   ds_3_df$Cholesterol <- round(ds_3_df$Cholesterol, digits = 2)
   
   #QUESTION FOUR: DIABETES
-  ds_filt4_df <- filter(ds_filt_df, Question == "Prevalence of diagnosed diabetes among adults aged >= 18 years")
+  ds_filt4_df <- filter(ds_filt_df, 
+                        Question == "Prevalence of diagnosed diabetes among adults aged >= 18 years")
   ds_select4_df <- select(ds_filt4_df, LocationAbbr, DataValueAlt)
   ds_select4_df <- group_by(ds_select4_df, LocationAbbr)
   ds_4_df <- summarise(ds_select4_df, Diabetes = mean(DataValueAlt))
   ds_4_df$Diabetes <- round(ds_4_df$Diabetes, digits = 2)
   
   #QUESTION FIVE: PHYSICAL ACTIVITY
-  ds_filt5_df <- filter(ds_filt_df, Question == "No leisure-time physical activity among adults aged >= 18 years")
+  ds_filt5_df <- filter(ds_filt_df, 
+                        Question == "No leisure-time physical activity among adults aged >= 18 years")
   ds_select5_df <- select(ds_filt5_df, LocationAbbr, DataValueAlt)
   ds_select5_df <- group_by(ds_select5_df, LocationAbbr)
   ds_5_df <- summarise(ds_select5_df, Activity = mean(DataValueAlt))
   ds_5_df$Activity <- round(ds_5_df$Activity, digits = 2)
   
   #QUESTION SIX: HEALTH STATUS
-  ds_filt6_df <- filter(ds_filt_df, Question == "Fair or poor self-rated health status among adults aged >= 18 years")
+  ds_filt6_df <- filter(ds_filt_df, 
+                        Question == "Fair or poor self-rated health status among adults aged >= 18 years")
   ds_select6_df <- select(ds_filt6_df, LocationAbbr, DataValueAlt)
   ds_select6_df <- group_by(ds_select6_df, LocationAbbr)
   ds_6_df <- summarise(ds_select6_df, Status = mean(DataValueAlt))
   ds_6_df$Status <- round(ds_6_df$Status, digits = 2)
   
+
 df <- left_join(main_df,
                 left_join(ds_1_df, 
                           left_join(ds_2_df, 
@@ -182,5 +193,4 @@ df <- left_join(main_df,
   df <- merge(ds_df, ws_df, by = "STATEFP", all.x = TRUE)
   
 #  usethis::use_git()
-
   
