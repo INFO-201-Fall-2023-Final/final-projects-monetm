@@ -10,15 +10,20 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
 # Walking Score Data Cleaning ----
 
   # Finding Mean Walk Score per State
-    ws_select_df <- select(ws_full_df, STATEFP, COUNTYFP, NatWalkInd, D4A_Ranked, D3B_Ranked)
+    ws_select_df <- select(ws_full_df, STATEFP, COUNTYFP, NatWalkInd, 
+                           D4A_Ranked, D3B_Ranked, E_PctLowWage)
     ws_select_df <- group_by(ws_select_df, STATEFP)
     ws_df <- summarize(ws_select_df, 
                        avg_walk = mean(NatWalkInd), 
                        avg_commute = mean(D4A_Ranked),
-                       avg_intersection = mean(D3B_Ranked))
+                       avg_intersection = mean(D3B_Ranked),
+                       avg_low_perc = mean(E_PctLowWage)) 
+    #Percent of workers earning $1250/month or less (work location), 2017
     ws_df$avg_walk <- round(ws_df$avg_walk, digits = 2)
+    ws_df$avg_walk_rd <- round(ws_df$avg_walk, digits = 0)
     ws_df$avg_commute <- round(ws_df$avg_commute, digits = 2)
     ws_df$avg_intersection <- round(ws_df$avg_intersection, digits = 2)
+    ws_df$avg_low_perc <- round(ws_df$avg_low_perc, digits = 2)
     
   # Walkability Score to Phrase Function
     
@@ -46,7 +51,7 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
                                  LocationAbbr, Topic, Question, DataValueUnit,
                                  DataValueType, DataValueAlt))
 
-  ds_clean_df <- filter(ds_full_df, YearStart == 2021)
+  ds_clean_df <- filter(ds_full_df, YearStart == 2019, YearEnd == 2019)
   
   dfClean <- function(df){
   # LIST OF POTENTIALLY RELEVANT DATA QUESTIONS
@@ -58,7 +63,7 @@ ws_full_df <- read.csv("EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")
 # 6. "Fair or poor self-rated health status among adults aged >= 18 years"
   
   #VARIABLES
-  ds_filt_df <- filter(df, YearStart == 2021, 
+  ds_filt_df <- filter(df, YearStart == 2019, YearEnd == 2019,
                        DataValueType == "Age-adjusted Prevalence")
   main_df <- as.data.frame(state.abb)
   main_df <- rename(main_df, "LocationAbbr" = "state.abb")
@@ -192,5 +197,23 @@ df <- left_join(main_df,
 # Merge Data Sets ----
   df <- merge(ds_df, ws_df, by = "STATEFP", all.x = TRUE)
   
+  
+# WASHINGTON SPECIFIC DATA SET ----
+  
+  # WA DATA CLEANING
+  wa_ws_df <- filter(ws_full_df, STATEFP == "53", CSA == "500")
+  wa_ws_df <- select(wa_ws_df, STATEFP, COUNTYFP, NatWalkInd, 
+                     D4A_Ranked, D3B_Ranked, E_PctLowWage)
+  wa_ws_df$NatWalkInd <- as.numeric(round(wa_ws_df$NatWalkInd, digits = 2))
+  wa_ws_df$E_PctLowWage <- as.numeric(round(wa_ws_df$E_PctLowWage, digits = 2))
+
+  wa_ws_df$walkable <- mapply(toWalkable, wa_ws_df$NatWalkInd)
+  wa_ws_df$STATEFP <- gsub('53', 'WA', wa_ws_df$STATEFP)
+  
+  #wa_ds_df <- filter(ds_clean_df, LocationAbbr == "WA", 
+                     #Question == "Prevalence of diagnosed diabetes among adults aged >= 18 years")
+  
+#MISC ----
+ write.csv(df, "final_project_df.csv")
 #  usethis::use_git()
   
